@@ -1,0 +1,6 @@
+[build]
+builder = "nixpacks"
+buildCommand = "cd email_agent && bundle install"
+
+[deploy]
+startCommand = "cd email_agent && bundle exec ruby examples/bot_run.rb"
