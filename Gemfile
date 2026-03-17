@@ -1,13 +1,7 @@
 # frozen_string_literal: true
-
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in email_agent.gemspec
-gemspec
-
-gem "irb"
-gem "rake", "~> 13.0"
-
-gem "rspec", "~> 3.0"
-
-gem "standard", "~> 1.3"
+gem "net-imap"
+gem "net-smtp"
+gem "mail", "~> 2.8"
+gem "dotenv"
