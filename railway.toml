@@ -1,5 +1,5 @@
 [build]
-builder = "nixpacks"
+builder = "railpack"
 
 [deploy]
 startCommand = "bundle exec ruby examples/bot_run.rb"
