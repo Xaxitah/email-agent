@@ -4,13 +4,13 @@ module EmailAgent
   class Account
     attr_reader :name, :user, :host, :port, :password
 
-    def initialize(name:, host:, port: 993, user:, password:)
-      @name     = name
-      @host     = host
-      @port     = port.to_i
-      @user     = user
+    def initialize(name:, host:, user:, password:, port: 993)
+      @name = name
+      @host = host
+      @port = port.to_i
+      @user = user
       @password = password
-      @imap     = nil
+      @imap = nil
     end
 
     def connect

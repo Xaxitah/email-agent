@@ -11,6 +11,7 @@ module EmailAgent
 
     def fetch_unread(limit: 10)
       emails = []
+      imap = nil
 
       imap = Net::IMAP.new(@account.host, port: @account.port, ssl: true)
       imap.login(@account.user, @account.password)
@@ -27,19 +28,17 @@ module EmailAgent
         emails << summary
       end
 
-      imap.logout
-      imap.disconnect
       emails
-    rescue StandardError => e
-      raise e
+    ensure
+      disconnect_safely(imap)
     end
 
     def self.summarize(mail)
       {
-        from:    mail.from&.first,
+        from: mail.from&.first,
         subject: safe_encode(mail.subject),
-        date:    mail.date,
-        body:    safe_encode(extract_body(mail))
+        date: mail.date,
+        body: safe_encode(extract_body(mail))
       }
     end
 
@@ -50,13 +49,29 @@ module EmailAgent
       else
         mail.body.decoded
       end
-    rescue StandardError => e
+    rescue => e
       "(erro ao ler corpo: #{e.message})"
     end
 
     def self.safe_encode(text)
       return "" if text.nil?
       text.encode("UTF-8", invalid: :replace, undef: :replace, replace: "?")
+    end
+
+    private
+
+    def disconnect_safely(imap)
+      return unless imap
+
+      imap.logout unless imap.disconnected?
+    rescue
+      nil
+    ensure
+      begin
+        imap.disconnect unless imap.disconnected?
+      rescue
+        nil
+      end
     end
   end
 end

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "email_agent"
+require_relative "../lib/email_agent"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

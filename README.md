@@ -1,43 +1,49 @@
-# EmailAgent
+# Email Agent
 
-TODO: Delete this and the text below, and describe your gem
+Worker Ruby somente leitura para consultar mensagens não lidas via IMAP e responder pelo Telegram. O agente não marca, apaga, move nem responde e-mails.
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/email_agent`. To experiment with that code, run `bin/console` for an interactive prompt.
+## Requisitos
 
-## Installation
+- Ruby 3.1 ou superior
+- Bundler
+- Bot do Telegram
+- Senha de aplicativo ou credencial IMAP específica; nunca use a senha principal
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+## Configuração local
 
-Install the gem and add to the application's Gemfile by executing:
-
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```powershell
+Copy-Item .env.example .env
+bundle install
+ruby examples/test_run.rb
+ruby examples/bot_run.rb
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+Preencha `.env` localmente. Esse arquivo é ignorado pelo Git. Para múltiplas contas, aumente `ACCOUNT_COUNT` e repita `ACCOUNT_2_*`, `ACCOUNT_3_*` etc.
 
-```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+Variáveis obrigatórias:
+
+- `ACCOUNT_COUNT`
+- `ACCOUNT_N_NAME`, `ACCOUNT_N_HOST`, `ACCOUNT_N_PORT`
+- `ACCOUNT_N_USER`, `ACCOUNT_N_PASSWORD`
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+
+`ANTHROPIC_API_KEY` é opcional. Sem ela, o bot produz um resumo determinístico local. Com ela, envia somente remetente, assunto, data e categorias para geração do resumo; o corpo do e-mail não é enviado.
+
+## Railway
+
+1. Crie um projeto a partir deste repositório GitHub.
+2. Cadastre as variáveis acima em **Variables**; não envie `.env`.
+3. O comando de início já está definido em `railway.toml`.
+4. Verifique nos logs a mensagem de inicialização do bot.
+5. Envie uma mensagem ao bot e confirme que apenas o `TELEGRAM_CHAT_ID` autorizado recebe resposta.
+
+O processo usa long polling e deve ser implantado como worker, sem domínio público.
+
+## Verificação
+
+```powershell
+bundle exec rspec
+bundle exec standardrb
 ```
 
-## Usage
-
-TODO: Write usage instructions here
-
-## Development
-
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
-
-## Contributing
-
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/email_agent. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/email_agent/blob/main/CODE_OF_CONDUCT.md).
-
-## License
-
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Code of Conduct
-
-Everyone interacting in the EmailAgent project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/email_agent/blob/main/CODE_OF_CONDUCT.md).
+Antes da implantação, revogue qualquer token ou senha que já tenha sido publicado, compartilhado em conversa ou incluído em commit.

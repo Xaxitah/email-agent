@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+require "io/console"
+
 puts "============================================"
 puts "  EMAIL AGENT - Configuracao de Contas"
 puts "============================================"
@@ -33,8 +35,9 @@ count.times do |i|
   print "  Seu e-mail: "
   user = gets.chomp
 
-  print "  Senha (ou senha de app): "
-  password = gets.chomp
+  print "  Senha de aplicativo: "
+  password = $stdin.noecho(&:gets).to_s.chomp
+  puts
 
   lines << "# Conta #{n} - #{name}"
   lines << "ACCOUNT_#{n}_NAME=#{name}"

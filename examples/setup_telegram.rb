@@ -7,6 +7,7 @@ require "net/http"
 require "uri"
 require "json"
 require "dotenv/load"
+require "io/console"
 
 ENV_FILE = File.expand_path("../../.env", __dir__)
 
@@ -23,7 +24,8 @@ puts "  4. Mande qualquer mensagem ('oi') pro seu bot"
 puts ""
 
 print "Cole o token do bot aqui: "
-token = $stdin.gets.chomp.strip
+token = $stdin.noecho(&:gets).to_s.chomp.strip
+puts
 
 if token.empty?
   puts "Token não pode ser vazio!"
@@ -37,7 +39,7 @@ response = Net::HTTP.get(uri)
 data = JSON.parse(response)
 
 unless data["ok"]
-  puts "❌ Token inválido ou erro na API: #{data['description']}"
+  puts "❌ Token inválido ou erro na API: #{data["description"]}"
   exit 1
 end
 
@@ -68,7 +70,7 @@ test_data = JSON.parse(test_resp.body)
 if test_data["ok"]
   puts "✅ Mensagem de teste enviada! Verifique o Telegram."
 else
-  puts "⚠️  Mensagem não enviada: #{test_data['description']}"
+  puts "⚠️  Mensagem não enviada: #{test_data["description"]}"
 end
 
 # Salva no .env

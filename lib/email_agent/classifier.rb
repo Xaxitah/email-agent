@@ -28,11 +28,11 @@ module EmailAgent
 
     # Regras por categoria (ordem importa — primeiro match vence)
     RULES = {
-      spam:          SPAM_PATTERNS,
-      urgente:       /urgente|prazo|deadline|imediato|atenção\s?urgente|responda\s?hoje|vence\s?hoje|vencimento\s?amanhã/i,
-      academico:     /nota|frequencia|diário|plano de aula|bncc|aluno|turma|disciplina|boletim|avaliação/i,
+      spam: SPAM_PATTERNS,
+      urgente: /urgente|prazo|deadline|imediato|atenção\s?urgente|responda\s?hoje|vence\s?hoje|vencimento\s?amanhã/i,
+      academico: /nota|frequencia|diário|plano de aula|bncc|aluno|turma|disciplina|boletim|avaliação/i,
       administrativo: /portaria|memorando|ofício|edital|convocação|reunião|comunicado|resolução/i,
-      financeiro:    /pagamento|boleto|fatura|cobrança|pix|transferência|extrato/i,
+      financeiro: /pagamento|boleto|fatura|cobrança|pix|transferência|extrato/i
     }.freeze
 
     def self.classify(mail_summary)

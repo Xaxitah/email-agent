@@ -9,7 +9,7 @@ module EmailAgent
     TELEGRAM_API = "https://api.telegram.org/bot"
 
     def initialize
-      @token   = ENV.fetch("TELEGRAM_BOT_TOKEN", nil)
+      @token = ENV.fetch("TELEGRAM_BOT_TOKEN", nil)
       @chat_id = ENV.fetch("TELEGRAM_CHAT_ID", nil)
       @enabled = !@token.nil? && !@chat_id.nil?
     end
@@ -23,11 +23,11 @@ module EmailAgent
       return false unless enabled?
 
       uri = URI("#{TELEGRAM_API}#{@token}/sendMessage")
-      params = { chat_id: @chat_id, text: text, parse_mode: "HTML" }
+      params = {chat_id: @chat_id, text: text, parse_mode: "HTML"}
 
       response = Net::HTTP.post_form(uri, params.transform_values(&:to_s))
       JSON.parse(response.body)["ok"]
-    rescue StandardError => e
+    rescue => e
       warn "[Notifier] Erro ao enviar mensagem: #{e.message}"
       false
     end
@@ -51,15 +51,15 @@ module EmailAgent
     def send_summary(results)
       return unless enabled?
 
-      total_emails  = results.values.sum { |r| r[:emails]&.size || 0 }
-      total_urgent  = results.values.sum { |r| (r[:emails] || []).count { |e| e[:categories].include?(:urgente) } }
+      total_emails = results.values.sum { |r| r[:emails]&.size || 0 }
+      total_urgent = results.values.sum { |r| (r[:emails] || []).count { |e| e[:categories].include?(:urgente) } }
 
-      lines = ["📊 <b>Resumo do Email Agent</b>", "🕐 #{Time.now.strftime('%d/%m/%Y %H:%M')}"]
+      lines = ["📊 <b>Resumo do Email Agent</b>", "🕐 #{Time.now.strftime("%d/%m/%Y %H:%M")}"]
       lines << "━" * 30
 
       results.each do |account_name, data|
-        emails  = data[:emails] || []
-        urgent  = emails.count { |e| e[:categories].include?(:urgente) }
+        emails = data[:emails] || []
+        urgent = emails.count { |e| e[:categories].include?(:urgente) }
         academic = emails.count { |e| e[:categories].include?(:academico) }
 
         status = data[:error] ? "❌ Erro" : "✅ OK"
@@ -90,13 +90,13 @@ module EmailAgent
 
       if data["ok"] && data["result"].any?
         chat = data["result"].last.dig("message", "chat")
-        puts "Chat ID encontrado: #{chat['id']}" if chat
+        puts "Chat ID encontrado: #{chat["id"]}" if chat
         chat&.fetch("id")
       else
         puts "Nenhuma mensagem encontrada. Mande 'oi' pro bot primeiro!"
         nil
       end
-    rescue StandardError => e
+    rescue => e
       warn "Erro ao buscar Chat ID: #{e.message}"
       nil
     end
