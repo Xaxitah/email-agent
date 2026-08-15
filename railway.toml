@@ -1,5 +1,6 @@
 [build]
-builder = "railpack"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 watchPatterns = ["**"]
 
 [deploy]

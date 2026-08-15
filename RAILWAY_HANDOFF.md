@@ -31,8 +31,8 @@ Atualizado em 2026-08-15.
 
 ## Correcoes implantadas
 
-- `railway.toml` usa Railpack e executa RSpec antes de ativar um deployment.
-- `railpack.json` copia o gemspec e a versao antes de `bundle install`.
+- `railway.toml` usa o `Dockerfile` e executa RSpec antes de ativar um deployment.
+- O `Dockerfile` mantem as variaveis protegidas somente no runtime e evita a falha de build-secrets observada no Railpack ao adicionar a chave da DeepSeek.
 - O bot carrega dinamicamente todas as contas configuradas e mostra seus nomes no log de inicializacao.
 - DeepSeek e Anthropic usam um cliente unico; sem chave, ha fallback para o resumo local.
 - FFmpeg, `whisper-cli`, o modelo `ggml-base.bin` e suas bibliotecas sao verificados antes de ativar cada deployment.
