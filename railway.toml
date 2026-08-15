@@ -1,5 +1,7 @@
 [build]
 builder = "railpack"
+watchPatterns = ["**"]
 
 [deploy]
+preDeployCommand = "bundle exec rspec && bundle exec ruby examples/verify_voice.rb"
 startCommand = "bundle exec ruby examples/bot_run.rb"

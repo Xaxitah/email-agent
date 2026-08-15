@@ -26,9 +26,8 @@ module EmailAgent
       newsletter
     /xi
 
-    # Regras por categoria (ordem importa — primeiro match vence)
+    # Regras por categoria
     RULES = {
-      spam: SPAM_PATTERNS,
       urgente: /urgente|prazo|deadline|imediato|atenção\s?urgente|responda\s?hoje|vence\s?hoje|vencimento\s?amanhã/i,
       academico: /nota|frequencia|diário|plano de aula|bncc|aluno|turma|disciplina|boletim|avaliação/i,
       administrativo: /portaria|memorando|ofício|edital|convocação|reunião|comunicado|resolução/i,
@@ -44,7 +43,10 @@ module EmailAgent
       # Remetentes ignorados viram :sistema
       return [:sistema] if from.match?(IGNORED_SENDERS)
 
-      # Aplica regras em ordem, retorna todas as categorias que batem
+      # Spam must not also trigger urgent notifications.
+      return [:spam] if text.match?(SPAM_PATTERNS)
+
+      # Retorna todas as categorias relevantes que batem
       categories = RULES.filter_map do |category, pattern|
         category if text.match?(pattern)
       end

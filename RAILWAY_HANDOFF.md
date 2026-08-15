@@ -1,6 +1,6 @@
 # Railway handoff
 
-Atualizado em 2026-08-12 para continuar a implantacao na proxima sessao.
+Atualizado em 2026-08-15.
 
 ## Contexto
 
@@ -10,34 +10,35 @@ Atualizado em 2026-08-12 para continuar a implantacao na proxima sessao.
 - Repositorio/fonte: `Xaxitah/email-agent`, branch `main`
 - Nenhum segredo esta registrado neste documento.
 
-## Trabalho concluido
+## Estado atual
 
-- O conteudo do `.env` local foi importado no Railway como 23 variaveis individuais.
-- Foram configuradas `ACCOUNT_COUNT`, `ACCOUNT_1_*` ate `ACCOUNT_4_*`, `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`.
-- A variavel unica e incorreta chamada `.env` foi removida.
-- `ANTHROPIC_API_KEY` nao foi configurada; ela e opcional e nao impede o bot de funcionar.
+- Deployment ativo: `473c5aad-0e47-4843-8917-afd800f5db5d` (`SUCCESS`).
+- `ACCOUNT_COUNT=4`; `ACCOUNT_1_*` ate `ACCOUNT_4_*` possuem nome, host, usuario e senha.
+- A suite roda como pre-deploy e passou com `21 examples, 0 failures`.
+- A integracao DeepSeek esta implantada com modelo `deepseek-v4-flash` e leitura do corpo habilitada com limite de 4.000 caracteres por mensagem.
+- `DEEPSEEK_API_KEY` esta configurada nas variaveis protegidas do Railway; o valor nao e armazenado no repositorio.
+- Mensagens de voz estao habilitadas com `whisper.cpp` v1.9.1 e o modelo multilingue `base`, processados localmente no Railway.
+- Audios sao limitados a 120 segundos e 8 MB; somente o `TELEGRAM_CHAT_ID` autorizado pode iniciar o download e a transcricao.
+- O agendador economico roda dentro do mesmo servico: leituras silenciosas as 05h e 17h, com relatorios de novos emails as 06h e 18h no fuso `America/Asuncion`.
+- O estado idempotente do agendador fica em `/data/scheduler-state.json` no volume persistente Railway.
+- O workspace avisa ao atingir US$ 5 de computacao e interrompe os servicos ao atingir US$ 10, os menores valores aceitos atualmente pelo Railway.
 
-## Diagnosticos
+## Diagnosticos resolvidos
 
 1. O deployment `7ce9e11f-b9c4-49c4-abc8-55bfb3bbb7e1` reutilizou o commit antigo `e810d43` e terminou em `CRASHED`. Esse commit tinha `lib/email_agent/telegram_bot.rb` truncado na linha 146.
 2. O redeploy com `--from-source` usou o commit correto `a1a54a7`, deployment `cf46fa8e-4fdd-4ef5-b231-d36241675b72`, mas terminou em `FAILED` durante o build.
 3. Causa do segundo erro: o builder legado Nixpacks executou `bundle install` antes de copiar `email_agent.gemspec`, gerando `There are no gemspecs at /app`.
 
-## Correcao preparada
+## Correcoes implantadas
 
-- `railway.toml` foi alterado de `builder = "nixpacks"` para `builder = "railpack"`.
-- `ruby -c lib/email_agent/telegram_bot.rb`: `Syntax OK`.
-- RSpec: `2 examples, 0 failures`.
-- `standardrb` nao iniciou localmente por incompatibilidade entre `regexp_parser` e o Ruby 3.3.12 local; isso nao indicou erro no codigo da aplicacao.
+- `railway.toml` usa Railpack e executa RSpec antes de ativar um deployment.
+- `railpack.json` copia o gemspec e a versao antes de `bundle install`.
+- O bot carrega dinamicamente todas as contas configuradas e mostra seus nomes no log de inicializacao.
+- DeepSeek e Anthropic usam um cliente unico; sem chave, ha fallback para o resumo local.
+- FFmpeg, `whisper-cli`, o modelo `ggml-base.bin` e suas bibliotecas sao verificados antes de ativar cada deployment.
 
-## Ponto exato de retomada
+## Proximo passo
 
-O comando `railway up` para enviar a versao com Railpack foi interrompido antes de criar um novo deployment. O ultimo deployment continua sendo `cf46fa8e-4fdd-4ef5-b231-d36241675b72` (`FAILED`).
-
-Proximos passos:
-
-1. Confirmar que o servico ainda aponta para `production/email-agent`.
-2. Executar um deployment usando a configuracao atual com Railpack.
-3. Acompanhar ate um estado terminal; somente considerar concluido se chegar a `SUCCESS`.
-4. Conferir os logs de runtime para a mensagem de inicializacao do bot.
-5. Enviar uma mensagem ao bot no Telegram e confirmar que apenas o `TELEGRAM_CHAT_ID` autorizado recebe resposta.
+1. Confirmar que o deployment iniciado pelo GitHub passa com a variavel protegida da DeepSeek.
+2. Enviar ao bot: `resuma os emails de todas as contas`.
+3. Enviar uma mensagem de voz ao bot, por exemplo: `resuma os emails urgentes de todas as contas`.

@@ -15,15 +15,18 @@ module EmailAgent
 
       imap = Net::IMAP.new(@account.host, port: @account.port, ssl: true)
       imap.login(@account.user, @account.password)
-      imap.select("INBOX")
+      # EXAMINE opens the mailbox read-only. BODY.PEEK[] fetches the complete
+      # message without setting the \\Seen flag.
+      imap.examine("INBOX")
 
       uids = imap.search(["UNSEEN"]).last(limit)
 
       uids.each do |uid|
-        raw = imap.fetch(uid, "RFC822").first.attr["RFC822"]
+        raw = imap.fetch(uid, "BODY.PEEK[]").first.attr["BODY[]"]
         mail = Mail.read_from_string(raw)
 
         summary = self.class.summarize(mail)
+        summary[:uid] = uid
         summary[:categories] = Classifier.classify(summary)
         emails << summary
       end
@@ -35,6 +38,7 @@ module EmailAgent
 
     def self.summarize(mail)
       {
+        message_id: safe_encode(mail.message_id),
         from: mail.from&.first,
         subject: safe_encode(mail.subject),
         date: mail.date,

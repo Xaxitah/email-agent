@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+
+archive=/tmp/whisper-bin.tar.gz
+destination=vendor/whisper
+
+mkdir -p "$destination"
+curl -fsSL --retry 3 \
+  https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.1/whisper-bin-ubuntu-x64.tar.gz \
+  -o "$archive"
+printf '%s  %s\n' \
+  f3bf3b4369a99b54665b0f19b88483b30de27f25963b0414235dea03198515c5 \
+  "$archive" | sha256sum -c -
+tar -xzf "$archive" --strip-components=1 -C "$destination"
+
+curl -fL --retry 3 \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin \
+  -o "$destination/ggml-base.bin"
+printf '%s  %s\n' \
+  60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe \
+  "$destination/ggml-base.bin" | sha256sum -c -
+
+chmod +x "$destination/whisper-cli"

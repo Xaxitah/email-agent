@@ -24,13 +24,14 @@ module EmailAgent
     end
 
     def fetch_unread(mailbox: "INBOX", limit: 10)
-      @imap.select(mailbox)
+      # Keep this legacy access path read-only as well as Reader.
+      @imap.examine(mailbox)
       ids = @imap.search(["NOT", "SEEN"])
       ids = ids.last(limit) if ids.length > limit
 
       ids.map do |id|
-        data = @imap.fetch(id, "RFC822").first
-        Mail.new(data.attr["RFC822"])
+        data = @imap.fetch(id, "BODY.PEEK[]").first
+        Mail.new(data.attr["BODY[]"])
       end
     rescue => e
       puts "[#{@name}] ERRO ao buscar e-mails: #{e.message}"

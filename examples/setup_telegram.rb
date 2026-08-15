@@ -9,7 +9,7 @@ require "json"
 require "dotenv/load"
 require "io/console"
 
-ENV_FILE = File.expand_path("../../.env", __dir__)
+ENV_FILE = File.expand_path("../.env", __dir__)
 
 puts "=" * 60
 puts "  CONFIGURACAO DO BOT TELEGRAM"

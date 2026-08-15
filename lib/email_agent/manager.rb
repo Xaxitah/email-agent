@@ -7,10 +7,20 @@ module EmailAgent
       @notifier = Notifier.new
     end
 
-    def check_all(limit: 10)
-      results = {}
+    def account_names
+      @accounts.map(&:name)
+    end
 
-      @accounts.each do |account|
+    def check_all(limit: 10, account_names: nil, notify_urgent: true)
+      results = {}
+      selected_accounts = if account_names.nil?
+        @accounts
+      else
+        requested_names = account_names.map(&:to_s)
+        @accounts.select { |account| requested_names.include?(account.name) }
+      end
+
+      selected_accounts.each do |account|
         puts "\n🔍 Verificando #{account.name}..."
         begin
           reader = Reader.new(account)
@@ -19,7 +29,7 @@ module EmailAgent
           results[account.name] = {emails: emails, error: nil}
 
           # Notifica e-mails urgentes via Telegram
-          if @notifier.enabled?
+          if notify_urgent && @notifier.enabled?
             urgent = emails.select { |e| e[:categories].include?(:urgente) }
             @notifier.notify_urgent(account.name, urgent) if urgent.any?
           end

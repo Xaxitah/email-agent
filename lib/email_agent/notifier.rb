@@ -9,9 +9,9 @@ module EmailAgent
     TELEGRAM_API = "https://api.telegram.org/bot"
 
     def initialize
-      @token = ENV.fetch("TELEGRAM_BOT_TOKEN", nil)
-      @chat_id = ENV.fetch("TELEGRAM_CHAT_ID", nil)
-      @enabled = !@token.nil? && !@chat_id.nil?
+      @token = ENV.fetch("TELEGRAM_BOT_TOKEN", "").strip
+      @chat_id = ENV.fetch("TELEGRAM_CHAT_ID", "").strip
+      @enabled = !@token.empty? && !@chat_id.empty?
     end
 
     def enabled?
