@@ -127,7 +127,7 @@ RSpec.describe EmailAgent::TelegramBot do
 
       bot.send(:handle_update, {"message" => {"chat" => {"id" => 123}, "text" => "consulte meu email"}})
 
-      expect(bot).to have_received(:send_message).with("123", a_string_including("Alpha Work", "Beta Personal"))
+      expect(bot).to have_received(:send_message).with("123", a_string_including("Alpha Work", "Beta Personal"), hash_including(:inline_keyboard))
     end
 
     expect(manager).not_to have_received(:check_all)

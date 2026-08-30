@@ -8,6 +8,11 @@ module EmailAgent
   class TelegramBot
     TELEGRAM_API = "https://api.telegram.org/bot"
 
+    # O callback_data do Telegram tem teto de 64 bytes. Por isso a conta viaja
+    # como indice ("conta:2") e nao pelo nome: nome de conta e texto livre,
+    # pode ter acento e pode estourar o limite sem aviso nenhum.
+    ACCOUNT_TOKEN = /\Aconta:(\d+|todas)\z/
+
     def initialize
       @token = required_config("TELEGRAM_BOT_TOKEN")
       @chat_id = required_config("TELEGRAM_CHAT_ID")
@@ -21,6 +26,9 @@ module EmailAgent
         on_report: method(:send_scheduled_report)
       )
       @offset = 0
+      # Guarda o pedido original enquanto o usuario escolhe a conta no teclado.
+      # So existe um chat autorizado, entao uma vaga basta.
+      @pending_request = nil
     end
 
     def run
@@ -61,6 +69,8 @@ module EmailAgent
     end
 
     def handle_update(update)
+      return handle_callback(update["callback_query"]) if update["callback_query"]
+
       message = update.dig("message")
       return unless message
 
@@ -85,19 +95,73 @@ module EmailAgent
       process_command(chat_id, text)
     end
 
+    # Clique num botao inline. O chat de origem aqui e aquele onde o teclado
+    # foi enviado; a mesma checagem de autorizacao das mensagens de texto vale,
+    # e ela vem antes de qualquer chamada de rede.
+    def handle_callback(callback)
+      chat_id = callback.dig("message", "chat", "id").to_s
+      unless chat_id == @chat_id.to_s
+        warn "⚠️  Callback ignorado de chat_id desconhecido: #{chat_id}"
+        return
+      end
+
+      answer_callback(callback["id"])
+      data = callback["data"].to_s
+      puts "🔘 [#{Time.now.strftime("%H:%M")}] #{data}"
+
+      case data
+      when "menu:resumo" then responder_email(chat_id, "Resuma meus e-mails nao lidos.")
+      when "menu:urgentes" then responder_email(chat_id, "Liste apenas os e-mails urgentes.")
+      when "menu:agenda" then send_message(chat_id, agenda_indisponivel)
+      when ACCOUNT_TOKEN then escolher_conta(chat_id, Regexp.last_match(1))
+      else send_message(chat_id, "Nao reconheci esse botao.")
+      end
+    end
+
     def process_command(chat_id, text)
+      case IntentRouter.route(text)
+      when :ajuda then send_message(chat_id, menu_text, menu_keyboard)
+      when :agenda then send_message(chat_id, agenda_indisponivel)
+      else responder_email(chat_id, text)
+      end
+    end
+
+    def responder_email(chat_id, text)
       send_action(chat_id, "typing")
 
       contas = filtrar_contas(text)
       if contas == []
-        send_message(chat_id, account_selection_prompt)
+        @pending_request = text
+        send_message(chat_id, account_selection_prompt, account_keyboard)
         return
       end
 
+      entregar_resumo(chat_id, text, contas)
+    end
+
+    # Contas nil significa "todas as contas" — e o contrato que o Manager ja
+    # usava antes desta fatia.
+    def entregar_resumo(chat_id, text, contas)
+      send_action(chat_id, "typing")
       results = @manager.check_all(limit: 20, account_names: contas)
       resposta = @ai_client ? ask_ai(text, results) : resposta_simples(results)
 
       send_message(chat_id, resposta)
+    end
+
+    def escolher_conta(chat_id, token)
+      pedido = @pending_request || "Resuma meus e-mails nao lidos."
+      @pending_request = nil
+
+      return entregar_resumo(chat_id, pedido, nil) if token == "todas"
+
+      nome = @manager.account_names[token.to_i]
+      unless nome
+        send_message(chat_id, "Essa conta nao existe mais. Peca o menu de novo com /menu.")
+        return
+      end
+
+      entregar_resumo(chat_id, pedido, [nome])
     end
 
     def transcribe_media(chat_id, media)
@@ -121,17 +185,27 @@ module EmailAgent
       nil
     end
 
-    def send_message(chat_id, text)
+    def send_message(chat_id, text, reply_markup = nil)
       uri = URI("#{TELEGRAM_API}#{@token}/sendMessage")
-      response = Net::HTTP.post_form(uri, {
+      payload = {
         chat_id: chat_id,
         text: text,
         parse_mode: "HTML"
-      })
+      }
+      payload[:reply_markup] = JSON.generate(reply_markup) if reply_markup
+      response = Net::HTTP.post_form(uri, payload)
       JSON.parse(response.body)["ok"] == true
     rescue => e
       warn "Erro ao enviar mensagem: #{e.message}"
       false
+    end
+
+    # Sem isso o Telegram deixa o botao com o relogio girando ate expirar.
+    def answer_callback(callback_id)
+      uri = URI("#{TELEGRAM_API}#{@token}/answerCallbackQuery")
+      Net::HTTP.post_form(uri, {callback_query_id: callback_id})
+    rescue
+      nil
     end
 
     def send_scheduled_report(results, period)
@@ -162,10 +236,41 @@ module EmailAgent
       end
     end
 
+    def menu_text
+      "<b>O que voce quer fazer?</b>\nVoce tambem pode escrever ou mandar audio normalmente."
+    end
+
+    def menu_keyboard
+      {
+        inline_keyboard: [
+          [{text: "📬 Resumo dos e-mails", callback_data: "menu:resumo"}],
+          [{text: "🔥 So os urgentes", callback_data: "menu:urgentes"}],
+          [{text: "📅 Agenda", callback_data: "menu:agenda"}]
+        ]
+      }
+    end
+
+    def account_keyboard
+      rows = @manager.account_names.each_with_index.map do |name, index|
+        [{text: name, callback_data: "conta:#{index}"}]
+      end
+      rows << [{text: "Todas as contas", callback_data: "conta:todas"}]
+
+      {inline_keyboard: rows}
+    end
+
+    def agenda_indisponivel
+      "📅 Entendi que e um pedido de agenda, mas o CalendarAgent ainda nao esta " \
+        "implementado — nao criei nem consultei nada. Por enquanto so consigo " \
+        "cuidar dos e-mails."
+    end
+
+    # O texto continua listando as contas de proposito: quem responde por audio
+    # ou por texto nao depende do teclado para saber o que existe.
     def account_selection_prompt
       available = @manager.account_names.map { |name| escape(name) }.join(", ")
       "Qual conta devo consultar? Contas disponiveis: #{available}. " \
-        "Voce tambem pode pedir explicitamente todas as contas."
+        "Toque num botao abaixo ou peca explicitamente todas as contas."
     end
 
     def resposta_simples(results)
