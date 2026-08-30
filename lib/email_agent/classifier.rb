@@ -2,31 +2,27 @@
 
 module EmailAgent
   class Classifier
-    # Remetentes que sempre são ignorados (alertas de sistema, no-reply)
-    IGNORED_SENDERS = /
-      no-reply@accounts\.google\.com |
-      noreply@.*\.google\.com        |
-      security@.*\.google\.com       |
-      info@accounts\.google\.com     |
-      no-reply@.*                    |
-      noreply@.*
-    /xi
+    # Quantos caracteres do corpo entram na classificacao.
+    #
+    # Threads longas arrastam palavras de mensagens citadas la embaixo: um
+    # "urgente" de tres semanas atras marcava a resposta nova como urgente.
+    # Olhar so o inicio do corpo corta esse falso positivo.
+    BODY_SCAN_CHARS = 600
 
-    # Regras de SPAM — deve vir ANTES de urgente para evitar falsos positivos
-    SPAM_PATTERNS = /
-      tele\s?sena         |  # Tele Sena não é urgente!
-      promoção            |
-      desconto            |
-      grátis              |
-      clique\s?aqui       |
-      oferta\s?especial   |
-      ganhe\s?agora       |
-      você\s?foi\s?selecionado |
-      unsubscribe         |
-      newsletter
-    /xi
+    # Cabecalhos que identificam envio automatico ou de lista
+    # (RFC 3834, RFC 2919, RFC 2369).
+    #
+    # Substituem a antiga regra por remetente `no-reply@.*`, que casava com
+    # praticamente toda comunicacao institucional automatica — boleto,
+    # convocacao, prazo de diario — e a silenciava antes de qualquer outra
+    # avaliacao. Cabecalho e o sinal correto; endereco nao e.
+    AUTOMATION_HEADERS = %i[list_id list_unsubscribe auto_submitted].freeze
 
-    # Regras por categoria
+    # Precedence: bulk/list/junk marca envio em massa.
+    # "auto_reply" fica de fora de proposito: e resposta automatica
+    # individual (ferias, ausencia), nao correspondencia de lista.
+    BULK_PRECEDENCE = /\A\s*(bulk|list|junk)\s*\z/i
+
     RULES = {
       urgente: /urgente|prazo|deadline|imediato|atenção\s?urgente|responda\s?hoje|vence\s?hoje|vencimento\s?amanhã/i,
       academico: /nota|frequencia|diário|plano de aula|bncc|aluno|turma|disciplina|boletim|avaliação/i,
@@ -34,24 +30,42 @@ module EmailAgent
       financeiro: /pagamento|boleto|fatura|cobrança|pix|transferência|extrato/i
     }.freeze
 
+    # Nao existe mais categoria :spam. As contas sao todas Gmail, e o filtro do
+    # Google roda antes: o que e spam nem chega na INBOX que o agente le. As
+    # regras que existiam aqui casavam com "unsubscribe" e "newsletter" no
+    # corpo — presentes em quase todo e-mail de lista legitimo — e marcavam
+    # como spam mensagens boas, curto-circuitando ate a checagem de urgencia.
     def self.classify(mail_summary)
-      from = mail_summary[:from].to_s
-      subject = mail_summary[:subject].to_s
-      body = mail_summary[:body].to_s
-      text = "#{subject} #{body}"
+      text = scannable_text(mail_summary)
 
-      # Remetentes ignorados viram :sistema
-      return [:sistema] if from.match?(IGNORED_SENDERS)
-
-      # Spam must not also trigger urgent notifications.
-      return [:spam] if text.match?(SPAM_PATTERNS)
-
-      # Retorna todas as categorias relevantes que batem
       categories = RULES.filter_map do |category, pattern|
         category if text.match?(pattern)
       end
 
+      # :automatico e aditivo, nunca terminal. Uma notificacao automatica pode
+      # perfeitamente carregar um prazo; marca-la sem silenciar e o objetivo.
+      categories << :automatico if automated?(mail_summary[:headers])
+
       categories.empty? ? [:geral] : categories
     end
+
+    def self.automated?(headers)
+      headers = headers.to_h
+      return true if AUTOMATION_HEADERS.any? { |key| present?(headers[key]) }
+
+      BULK_PRECEDENCE.match?(headers[:precedence].to_s)
+    end
+
+    def self.scannable_text(mail_summary)
+      subject = mail_summary[:subject].to_s
+      body = mail_summary[:body].to_s.slice(0, BODY_SCAN_CHARS).to_s
+
+      "#{subject} #{body}"
+    end
+
+    def self.present?(value)
+      !value.to_s.strip.empty?
+    end
+    private_class_method :present?
   end
 end

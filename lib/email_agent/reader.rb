@@ -36,14 +36,34 @@ module EmailAgent
       disconnect_safely(imap)
     end
 
+    # Cabecalhos que o Classifier usa para reconhecer envio automatico ou de
+    # lista. Ficam no resumo para a classificacao nao ter que adivinhar pelo
+    # endereco do remetente, que e um sinal ruim: comunicacao institucional
+    # legitima sai de no-reply o tempo todo.
+    AUTOMATION_HEADER_FIELDS = {
+      list_id: "List-Id",
+      list_unsubscribe: "List-Unsubscribe",
+      precedence: "Precedence",
+      auto_submitted: "Auto-Submitted"
+    }.freeze
+
     def self.summarize(mail)
       {
         message_id: safe_encode(mail.message_id),
         from: mail.from&.first,
         subject: safe_encode(mail.subject),
         date: mail.date,
+        headers: extract_headers(mail),
         body: safe_encode(extract_body(mail))
       }
+    end
+
+    def self.extract_headers(mail)
+      AUTOMATION_HEADER_FIELDS.transform_values do |field|
+        safe_encode(mail[field]&.to_s)
+      end
+    rescue
+      {}
     end
 
     def self.extract_body(mail)

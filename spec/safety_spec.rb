@@ -38,10 +38,14 @@ RSpec.describe "safe email access" do
     expect(imap).to have_received(:fetch).with(7, "BODY.PEEK[]")
   end
 
-  it "gives spam precedence over urgent" do
+  # Decisao revista em 2026-08-30: as quatro contas sao Gmail, e o filtro do
+  # Google roda antes da INBOX. Classificar spam aqui nunca barrou spam de
+  # verdade — so marcava como spam e-mail de lista legitimo, e o :spam era
+  # terminal, entao a mensagem nem chegava a ser avaliada para urgencia.
+  it "no longer shadows urgency with a spam guess" do
     summary = {from: "marketing@example.com", subject: "Oferta especial urgente", body: "Clique aqui hoje"}
 
-    expect(EmailAgent::Classifier.classify(summary)).to eq([:spam])
+    expect(EmailAgent::Classifier.classify(summary)).to eq([:urgente])
   end
 end
 
