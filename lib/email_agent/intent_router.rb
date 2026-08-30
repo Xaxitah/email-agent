@@ -51,13 +51,10 @@ module EmailAgent
       :email
     end
 
-    # Tira acento e caixa antes de comparar.
-    #
-    # As regras acima sao escritas sem acento de proposito: no Telegram muita
-    # gente digita "reuniao" e "amanha". Decompor em NFD e remover as marcas
-    # combinantes (\p{Mn}) resolve os dois lados de uma vez.
+    # Normalizacao (tira acento e caixa) vive em TextNormalizer, compartilhada
+    # com o Classifier. As regras acima sao escritas sem acento de proposito.
     def self.normalize(text)
-      text.to_s.unicode_normalize(:nfd).gsub(/\p{Mn}/, "").downcase.strip
+      TextNormalizer.normalize(text)
     end
   end
 end

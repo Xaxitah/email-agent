@@ -23,11 +23,15 @@ module EmailAgent
     # individual (ferias, ausencia), nao correspondencia de lista.
     BULK_PRECEDENCE = /\A\s*(bulk|list|junk)\s*\z/i
 
+    # Os padroes sao escritos SEM acento de proposito. `scannable_text` passa o
+    # texto pelo `TextNormalizer` (NFD + remove \p{Mn}), entao "convocação" e
+    # "convocacao" chegam aqui na mesma forma. Antes, so a forma acentuada
+    # casava e muita gente escreve sem acento — a classificacao falhava calada.
     RULES = {
-      urgente: /urgente|prazo|deadline|imediato|atenção\s?urgente|responda\s?hoje|vence\s?hoje|vencimento\s?amanhã/i,
-      academico: /nota|frequencia|diário|plano de aula|bncc|aluno|turma|disciplina|boletim|avaliação/i,
-      administrativo: /portaria|memorando|ofício|edital|convocação|reunião|comunicado|resolução/i,
-      financeiro: /pagamento|boleto|fatura|cobrança|pix|transferência|extrato/i
+      urgente: /urgente|prazo|deadline|imediato|atencao\s?urgente|responda\s?hoje|vence\s?hoje|vencimento\s?amanha/i,
+      academico: /nota|frequencia|diario|plano de aula|bncc|aluno|turma|disciplina|boletim|avaliacao/i,
+      administrativo: /portaria|memorando|oficio|edital|convocacao|reuniao|comunicado|resolucao/i,
+      financeiro: /pagamento|boleto|fatura|cobranca|pix|transferencia|extrato/i
     }.freeze
 
     # Nao existe mais categoria :spam. As contas sao todas Gmail, e o filtro do
@@ -60,7 +64,9 @@ module EmailAgent
       subject = mail_summary[:subject].to_s
       body = mail_summary[:body].to_s.slice(0, BODY_SCAN_CHARS).to_s
 
-      "#{subject} #{body}"
+      # Corta o corpo em BODY_SCAN_CHARS ANTES de normalizar — o guardiao do
+      # corpo continua medindo o texto original.
+      TextNormalizer.normalize("#{subject} #{body}")
     end
 
     def self.present?(value)

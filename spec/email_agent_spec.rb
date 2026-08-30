@@ -95,4 +95,34 @@ RSpec.describe EmailAgent::Classifier do
     expect { EmailAgent::Classifier.classify(summary) }.not_to raise_error
     expect(EmailAgent::Classifier.classify(summary)).to eq([:geral])
   end
+
+  # Defeito da fatia 4: as regras casavam so a forma acentuada. Muita gente
+  # escreve "convocacao", "reuniao", "amanha" — e a mensagem sumia do radar.
+  describe "regras insensiveis a acento" do
+    def categorias(subject: "", body: "")
+      EmailAgent::Classifier.classify(subject: subject, body: body)
+    end
+
+    it "pega urgencia escrita sem acento" do
+      expect(categorias(subject: "Atencao urgente")).to include(:urgente)
+      expect(categorias(subject: "Boleto", body: "vencimento amanha")).to include(:urgente)
+    end
+
+    it "pega assunto academico sem acento" do
+      expect(categorias(subject: "Resultado da avaliacao")).to include(:academico)
+    end
+
+    it "pega assunto administrativo sem acento" do
+      expect(categorias(subject: "Convocacao para reuniao")).to include(:administrativo)
+      expect(categorias(subject: "Oficio: resolucao do conselho")).to include(:administrativo)
+    end
+
+    it "pega assunto financeiro sem acento" do
+      expect(categorias(subject: "Cobranca via transferencia")).to include(:financeiro)
+    end
+
+    it "continua casando a forma com acento" do
+      expect(categorias(subject: "Convocação para reunião")).to include(:administrativo)
+    end
+  end
 end
