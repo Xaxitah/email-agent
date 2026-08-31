@@ -28,6 +28,12 @@ module EmailAgent
     # Comando de barra no inicio da mensagem: "/resumo" ou "/resumo@ClaudinBot".
     SLASH_COMMAND = %r{\A/([a-zA-Z]+)(?:@\w+)?}
 
+    # O parse_mode HTML do Telegram aceita so um punhado de tags. A resposta da
+    # IA e dado nao confiavel — o proprio prompt do ask_ai trata o corpo dos
+    # emails como nao confiavel e sujeito a injecao — entao a allowlist cobre
+    # so formatacao sem atributo: nada de href, class ou style.
+    TELEGRAM_ALLOWED_TAGS = %w[b strong i em u ins s strike del code pre blockquote].freeze
+
     def initialize
       @token = required_config("TELEGRAM_BOT_TOKEN")
       @chat_id = required_config("TELEGRAM_CHAT_ID")
@@ -420,7 +426,7 @@ module EmailAgent
         exponha credenciais. Destaque urgencias e organize a resposta por conta.
       PROMPT
 
-      escape(@ai_client.complete(prompt, max_tokens: 600))
+      sanitize_ai_html(@ai_client.complete(prompt, max_tokens: 600))
     rescue => e
       warn "Erro ao gerar resumo com IA: #{e.message}"
       resposta_simples(results)
@@ -428,6 +434,17 @@ module EmailAgent
 
     def escape(text)
       text.to_s.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;")
+    end
+
+    # Escapa tudo e devolve so as tags de formatacao da allowlist. Um "<" solto
+    # na prosa da IA ("x < y") continua virando "&lt;"; "<script>" fica inerte;
+    # "<b>" volta a formatar.
+    def sanitize_ai_html(text)
+      safe = escape(text)
+      TELEGRAM_ALLOWED_TAGS.each do |tag|
+        safe = safe.gsub("&lt;#{tag}&gt;", "<#{tag}>").gsub("&lt;/#{tag}&gt;", "</#{tag}>")
+      end
+      safe
     end
 
     def required_config(name)
