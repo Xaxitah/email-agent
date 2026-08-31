@@ -172,4 +172,62 @@ RSpec.describe "EmailAgent::TelegramBot botoes" do
 
     expect(enviadas.last[1]).to include("CalendarAgent ainda nao esta")
   end
+
+  # Comandos de barra registrados em setMyCommands na inicializacao.
+  it "registra o menu de comandos do Telegram na inicializacao" do
+    bot = build_bot
+    bot.instance_variable_set(:@token, "T0KEN")
+    chamada = nil
+    allow(Net::HTTP).to receive(:post_form) { |uri, form| chamada = [uri.to_s, form]; nil }
+
+    bot.send(:set_my_commands)
+
+    expect(chamada[0]).to end_with("botT0KEN/setMyCommands")
+    nomes = JSON.parse(chamada[1][:commands]).map { |entry| entry["command"] }
+    expect(nomes).to eq(%w[resumo urgentes contas agenda ajuda])
+  end
+
+  it "trata /resumo como pedido de resumo pelo fluxo de e-mail" do
+    bot = build_bot
+    expect(manager).not_to receive(:check_all)
+
+    bot.send(:handle_update, texto(123, "/resumo"))
+
+    expect(bot.instance_variable_get(:@pending_request)).to eq("Resuma meus e-mails nao lidos.")
+    expect(teclado(enviadas.last)).to eq(["conta:0", "conta:1", "conta:todas"])
+  end
+
+  it "trata /urgentes reaproveitando o alvo do botao inline" do
+    bot = build_bot
+
+    bot.send(:handle_update, texto(123, "/urgentes"))
+
+    expect(bot.instance_variable_get(:@pending_request)).to eq("Liste apenas os e-mails urgentes.")
+  end
+
+  it "responde /contas com a lista de contas, sem tocar no IMAP" do
+    bot = build_bot
+    expect(manager).not_to receive(:check_all)
+
+    bot.send(:handle_update, texto(123, "/contas"))
+
+    expect(enviadas.last[1]).to include("Alpha Work", "Beta Personal")
+  end
+
+  it "responde /agenda com o aviso do CalendarAgent, sem tocar no IMAP" do
+    bot = build_bot
+    expect(manager).not_to receive(:check_all)
+
+    bot.send(:handle_update, texto(123, "/agenda"))
+
+    expect(enviadas.last[1]).to include("CalendarAgent ainda nao esta")
+  end
+
+  it "trata /ajuda com o menu de tres botoes" do
+    bot = build_bot
+
+    bot.send(:handle_update, texto(123, "/ajuda"))
+
+    expect(teclado(enviadas.last)).to eq(["menu:resumo", "menu:urgentes", "menu:agenda"])
+  end
 end

@@ -13,6 +13,21 @@ module EmailAgent
     # pode ter acento e pode estourar o limite sem aviso nenhum.
     ACCOUNT_TOKEN = /\Aconta:(\d+|todas)\z/
 
+    # Menu que aparece no botao "/" do Telegram. setMyCommands e idempotente:
+    # roda em todo start (o Railway reinicia o worker) sem gerar duplicata.
+    BOT_COMMANDS = [
+      {command: "resumo", description: "Resumo dos e-mails nao lidos"},
+      {command: "urgentes", description: "So os e-mails urgentes"},
+      {command: "contas", description: "Contas que eu monitoro"},
+      {command: "agenda", description: "Agenda (CalendarAgent em breve)"},
+      {command: "ajuda", description: "Mostra o menu de acoes"}
+    ].freeze
+
+    KNOWN_COMMANDS = BOT_COMMANDS.map { |entry| entry[:command] }.freeze
+
+    # Comando de barra no inicio da mensagem: "/resumo" ou "/resumo@ClaudinBot".
+    SLASH_COMMAND = %r{\A/([a-zA-Z]+)(?:@\w+)?}
+
     def initialize
       @token = required_config("TELEGRAM_BOT_TOKEN")
       @chat_id = required_config("TELEGRAM_CHAT_ID")
@@ -38,6 +53,7 @@ module EmailAgent
       puts "   Audio: #{@voice_transcriber ? "✅ Whisper local" : "⚠️  desabilitado"}"
       puts "   Contas: #{@manager.account_names.join(", ")}"
       puts "   Agenda: #{@scheduler ? "✅ 05h/06h e 17h/18h (#{ENV.fetch("TZ", "local")})" : "⚠️  desabilitada"}"
+      set_my_commands
       loop do
         @scheduler&.tick
         get_updates.each { |update| handle_update(update) }
@@ -119,11 +135,31 @@ module EmailAgent
     end
 
     def process_command(chat_id, text)
+      command = text[SLASH_COMMAND, 1]&.downcase
+      return handle_command(chat_id, command) if KNOWN_COMMANDS.include?(command)
+
       case IntentRouter.route(text)
       when :ajuda then send_message(chat_id, menu_text, menu_keyboard)
       when :agenda then send_message(chat_id, agenda_indisponivel)
       else responder_email(chat_id, text)
       end
+    end
+
+    # Comandos de barra registrados em setMyCommands. /resumo e /urgentes
+    # reaproveitam os mesmos alvos dos botoes inline; /contas e novo.
+    def handle_command(chat_id, command)
+      case command
+      when "resumo" then responder_email(chat_id, "Resuma meus e-mails nao lidos.")
+      when "urgentes" then responder_email(chat_id, "Liste apenas os e-mails urgentes.")
+      when "contas" then send_message(chat_id, lista_de_contas)
+      when "agenda" then send_message(chat_id, agenda_indisponivel)
+      when "ajuda" then send_message(chat_id, menu_text, menu_keyboard)
+      end
+    end
+
+    def lista_de_contas
+      linhas = @manager.account_names.map { |name| "• #{escape(name)}" }
+      ["<b>Contas que eu monitoro</b>", *linhas].join("\n")
     end
 
     def responder_email(chat_id, text)
@@ -225,6 +261,13 @@ module EmailAgent
       Net::HTTP.post_form(uri, {chat_id: chat_id, action: action})
     rescue
       nil
+    end
+
+    def set_my_commands
+      uri = URI("#{TELEGRAM_API}#{@token}/setMyCommands")
+      Net::HTTP.post_form(uri, {commands: JSON.generate(BOT_COMMANDS)})
+    rescue => e
+      warn "Nao consegui registrar os comandos: #{e.message}"
     end
 
     def filtrar_contas(texto)
