@@ -180,7 +180,10 @@ RSpec.describe "EmailAgent::TelegramBot botoes" do
     bot = build_bot
     bot.instance_variable_set(:@token, "T0KEN")
     chamada = nil
-    allow(Net::HTTP).to receive(:post_form) { |uri, form| chamada = [uri.to_s, form]; nil }
+    allow(Net::HTTP).to receive(:post_form) do |uri, form|
+      chamada = [uri.to_s, form]
+      nil
+    end
 
     bot.send(:set_my_commands)
 
@@ -239,7 +242,10 @@ RSpec.describe "EmailAgent::TelegramBot botoes" do
     bot.instance_variable_set(:@pending_request, "tem algo urgente?")
     edicoes = []
     allow(bot).to receive(:send_message_with_id).and_return(42)
-    allow(bot).to receive(:edit_message) { |*args| edicoes << args; true }
+    allow(bot).to receive(:edit_message) do |*args|
+      edicoes << args
+      true
+    end
     allow(manager).to receive(:check_all) do |**_kwargs, &progresso|
       progresso.call(1, 2, "Alpha Work")
       progresso.call(2, 2, "Beta Personal")
