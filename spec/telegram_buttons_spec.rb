@@ -102,7 +102,7 @@ RSpec.describe "EmailAgent::TelegramBot botoes" do
   it "responde o pedido original quando o botao escolhe a conta" do
     bot = build_bot
     bot.instance_variable_set(:@pending_request, "tem algo urgente?")
-    expect(manager).to receive(:check_all).with(limit: 20, account_names: ["Alpha Work"]).and_return({})
+    expect(manager).to receive(:check_all).with(limit: 20, account_names: ["Alpha Work"], notify_urgent: false).and_return({})
 
     bot.send(:handle_update, botao("conta:0"))
 
@@ -111,7 +111,17 @@ RSpec.describe "EmailAgent::TelegramBot botoes" do
 
   it "usa todas as contas quando o botao e 'todas'" do
     bot = build_bot
-    expect(manager).to receive(:check_all).with(limit: 20, account_names: nil).and_return({})
+    expect(manager).to receive(:check_all).with(limit: 20, account_names: nil, notify_urgent: false).and_return({})
+
+    bot.send(:handle_update, botao("conta:todas"))
+  end
+
+  # Uma consulta manual devolve o resumo pedido e nada mais. Sem notify_urgent:
+  # false o Manager dispararia tambem os alertas de urgente do Notifier —
+  # mensagem duplicada no Telegram para o mesmo pedido.
+  it "nao dispara alertas de urgente separados numa consulta manual" do
+    bot = build_bot
+    expect(manager).to receive(:check_all).with(hash_including(notify_urgent: false)).and_return({})
 
     bot.send(:handle_update, botao("conta:todas"))
   end

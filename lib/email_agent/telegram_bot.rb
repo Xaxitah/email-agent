@@ -143,7 +143,11 @@ module EmailAgent
     # usava antes desta fatia.
     def entregar_resumo(chat_id, text, contas)
       send_action(chat_id, "typing")
-      results = @manager.check_all(limit: 20, account_names: contas)
+      # notify_urgent: false — uma consulta manual ja devolve o resumo pedido.
+      # Deixar o default (true) faria o Manager disparar, em paralelo, os alertas
+      # de urgente do Notifier: mensagem duplicada no Telegram. O scheduler ja
+      # passa false; o Manager#report (CLI) mantem o default de proposito.
+      results = @manager.check_all(limit: 20, account_names: contas, notify_urgent: false)
       resposta = @ai_client ? ask_ai(text, results) : resposta_simples(results)
 
       send_message(chat_id, resposta)

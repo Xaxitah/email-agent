@@ -174,7 +174,7 @@ RSpec.describe EmailAgent::TelegramBot do
     bot.instance_variable_set(:@manager, manager)
     bot.instance_variable_set(:@ai_client, nil)
     allow(transcriber).to receive(:transcribe).and_return("consulte todas")
-    allow(manager).to receive(:check_all).with(limit: 20, account_names: nil).and_return(
+    allow(manager).to receive(:check_all).with(limit: 20, account_names: nil, notify_urgent: false).and_return(
       "Alpha Work" => {emails: [], error: nil}
     )
     allow(bot).to receive(:send_action)
@@ -189,7 +189,7 @@ RSpec.describe EmailAgent::TelegramBot do
 
     expect(transcriber).to have_received(:transcribe).with(file_id: "voice-1", duration: 8, file_size: 2048)
     expect(bot).to have_received(:send_message).with("123", a_string_including("Entendi", "consulte todas"))
-    expect(manager).to have_received(:check_all).with(limit: 20, account_names: nil)
+    expect(manager).to have_received(:check_all).with(limit: 20, account_names: nil, notify_urgent: false)
   end
 
   it "does not download voice messages from an unauthorized chat" do
