@@ -56,6 +56,8 @@ RSpec.describe "EmailAgent::TelegramBot botoes" do
     allow(bot).to receive(:send_action)
     allow(bot).to receive(:answer_callback)
     allow(bot).to receive(:send_message) { |*args| enviadas << args; true }
+    allow(bot).to receive(:send_message_with_id).and_return(1)
+    allow(bot).to receive(:edit_message).and_return(true)
     bot
   end
 
@@ -229,5 +231,40 @@ RSpec.describe "EmailAgent::TelegramBot botoes" do
     bot.send(:handle_update, texto(123, "/ajuda"))
 
     expect(teclado(enviadas.last)).to eq(["menu:resumo", "menu:urgentes", "menu:agenda"])
+  end
+
+  # Fatia 3 — mensagem de progresso editavel no lugar do sendChatAction typing.
+  it "mostra progresso editavel por conta e entrega editando a mesma mensagem" do
+    bot = build_bot
+    bot.instance_variable_set(:@pending_request, "tem algo urgente?")
+    edicoes = []
+    allow(bot).to receive(:send_message_with_id).and_return(42)
+    allow(bot).to receive(:edit_message) { |*args| edicoes << args; true }
+    allow(manager).to receive(:check_all) do |**_kwargs, &progresso|
+      progresso.call(1, 2, "Alpha Work")
+      progresso.call(2, 2, "Beta Personal")
+      {}
+    end
+
+    bot.send(:handle_update, botao("conta:todas"))
+
+    textos = edicoes.map { |args| args[2] }
+    expect(textos).to include(a_string_including("(1/2)"), a_string_including("(2/2)"))
+    # a resposta final e entregue editando a mensagem de progresso (id 42),
+    # sem uma mensagem nova
+    expect(edicoes.last[1]).to eq(42)
+    expect(bot).not_to have_received(:send_message)
+  end
+
+  it "manda a resposta como mensagem nova quando a edicao final falha" do
+    bot = build_bot
+    bot.instance_variable_set(:@pending_request, "tem algo urgente?")
+    allow(bot).to receive(:send_message_with_id).and_return(42)
+    allow(bot).to receive(:edit_message).and_return(false)
+    allow(manager).to receive(:check_all).and_return({})
+
+    bot.send(:handle_update, botao("conta:todas"))
+
+    expect(enviadas.last[0]).to eq("123")
   end
 end

@@ -11,6 +11,10 @@ module EmailAgent
       @accounts.map(&:name)
     end
 
+    # Se um bloco for passado, ele recebe (feitas, total, nome) antes de cada
+    # conta ser lida — o TelegramBot usa isso para editar a mensagem de
+    # progresso ("(2/4)"). O scheduler nao passa bloco e nao muda de
+    # comportamento.
     def check_all(limit: 10, account_names: nil, notify_urgent: true)
       results = {}
       selected_accounts = if account_names.nil?
@@ -20,7 +24,9 @@ module EmailAgent
         @accounts.select { |account| requested_names.include?(account.name) }
       end
 
-      selected_accounts.each do |account|
+      total = selected_accounts.size
+      selected_accounts.each_with_index do |account, index|
+        yield(index + 1, total, account.name) if block_given?
         puts "\n🔍 Verificando #{account.name}..."
         begin
           reader = Reader.new(account)

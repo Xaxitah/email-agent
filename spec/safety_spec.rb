@@ -75,6 +75,21 @@ RSpec.describe EmailAgent::Manager do
     expect(EmailAgent::Reader).not_to receive(:new)
     expect(manager.check_all(account_names: ["Missing"])).to eq({})
   end
+
+  # Fatia 3 — o bloco de progresso que o TelegramBot usa para editar "(2/4)".
+  it "yields (done, total, name) per account before reading it, when given a block" do
+    first = EmailAgent::Account.new(name: "A", host: "one", user: "user", password: "secret")
+    second = EmailAgent::Account.new(name: "B", host: "two", user: "user", password: "secret")
+    manager = described_class.allocate
+    manager.instance_variable_set(:@accounts, [first, second])
+    manager.instance_variable_set(:@notifier, double(enabled?: false))
+    allow(EmailAgent::Reader).to receive(:new).and_return(instance_double(EmailAgent::Reader, fetch_unread: []))
+
+    progresso = []
+    manager.check_all { |done, total, name| progresso << [done, total, name] }
+
+    expect(progresso).to eq([[1, 2, "A"], [2, 2, "B"]])
+  end
 end
 
 RSpec.describe EmailAgent::TelegramBot do
@@ -179,6 +194,8 @@ RSpec.describe EmailAgent::TelegramBot do
     )
     allow(bot).to receive(:send_action)
     allow(bot).to receive(:send_message)
+    allow(bot).to receive(:send_message_with_id).and_return(99)
+    allow(bot).to receive(:edit_message).and_return(true)
 
     bot.send(:handle_update, {
       "message" => {

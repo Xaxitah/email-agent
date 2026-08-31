@@ -178,15 +178,24 @@ module EmailAgent
     # Contas nil significa "todas as contas" — e o contrato que o Manager ja
     # usava antes desta fatia.
     def entregar_resumo(chat_id, text, contas)
-      send_action(chat_id, "typing")
+      progress_id = send_message_with_id(chat_id, "🔍 Consultando suas contas...")
+
       # notify_urgent: false — uma consulta manual ja devolve o resumo pedido.
       # Deixar o default (true) faria o Manager disparar, em paralelo, os alertas
       # de urgente do Notifier: mensagem duplicada no Telegram. O scheduler ja
       # passa false; o Manager#report (CLI) mantem o default de proposito.
-      results = @manager.check_all(limit: 20, account_names: contas, notify_urgent: false)
+      results = @manager.check_all(limit: 20, account_names: contas, notify_urgent: false) do |feitas, total, nome|
+        edit_message(chat_id, progress_id, "🔍 Consultando #{total} conta(s)... (#{feitas}/#{total}) — #{escape(nome)}")
+      end
+
+      edit_message(chat_id, progress_id, "🧠 Preparando o resumo...") if @ai_client
+
       resposta = @ai_client ? ask_ai(text, results) : resposta_simples(results)
 
-      send_message(chat_id, resposta)
+      # A mensagem de progresso vira a resposta final. Se a edicao falhar (texto
+      # longo demais, HTML invalido), manda a resposta como mensagem nova.
+      entregue = progress_id && edit_message(chat_id, progress_id, resposta)
+      send_message(chat_id, resposta) unless entregue
     end
 
     def escolher_conta(chat_id, token)
@@ -237,6 +246,31 @@ module EmailAgent
       JSON.parse(response.body)["ok"] == true
     rescue => e
       warn "Erro ao enviar mensagem: #{e.message}"
+      false
+    end
+
+    # Como send_message, mas devolve o message_id para editar a mensagem depois.
+    def send_message_with_id(chat_id, text)
+      uri = URI("#{TELEGRAM_API}#{@token}/sendMessage")
+      response = Net::HTTP.post_form(uri, {chat_id: chat_id, text: text, parse_mode: "HTML"})
+      body = JSON.parse(response.body)
+      body.dig("result", "message_id") if body["ok"]
+    rescue => e
+      warn "Erro ao enviar mensagem: #{e.message}"
+      nil
+    end
+
+    # Reescreve uma mensagem ja enviada. O typing do sendChatAction expira em
+    # 5s; editMessageText nao expira, entao serve de indicador de progresso
+    # durante a leitura das contas e a chamada da IA. Devolve true so no ok.
+    def edit_message(chat_id, message_id, text)
+      return false unless message_id
+
+      uri = URI("#{TELEGRAM_API}#{@token}/editMessageText")
+      response = Net::HTTP.post_form(uri, {chat_id: chat_id, message_id: message_id, text: text, parse_mode: "HTML"})
+      JSON.parse(response.body)["ok"] == true
+    rescue => e
+      warn "Erro ao editar mensagem: #{e.message}"
       false
     end
 
