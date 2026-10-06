@@ -38,11 +38,10 @@ Funciona:
   "o que diz o 2?" usa os e-mails já lidos; e-mails numerados `[n]` no prompt.
 - Relatórios agendados: leitura às 05h/17h, envio às 06h/18h (`Scheduler`).
 
-**Por que ele não avisa nada durante o dia (causa encontrada em 06/10):**
-- O `Scheduler` só lê as caixas às 05h e 17h, e com `notify_urgent: false`.
-- O único alerta que existe (`Notifier#notify_urgent`) só dispara no
-  `Manager#report` da linha de comando, que ninguém roda.
-- Resultado: entre um relatório e outro, nenhum e-mail é visto.
+**Horário dos avisos — decisão do Douglas (06/10):** receber os avisos só
+**de manhã e à tarde** está bom. **Não criar leitura contínua (vigia)** nem
+alerta em tempo real. O `Scheduler` continua lendo às 05h/17h e enviando às
+06h/18h; o que melhora é **o que vai dentro** desses relatórios.
 
 Outros limites:
 - `Classifier` usa **regex fixa** (`urgente|prazo|...`): sem noção de quem é o
@@ -55,10 +54,9 @@ Outros limites:
 
 ## 3. O que construir, em ordem (cada item = uma fatia com testes)
 
-### Fatia 6 — Vigia + triagem com IA + alertas por tipo (prioridade máxima)
-1. **Vigia:** no `Scheduler#tick`, uma leitura leve a cada ~10–15 min
-   (configurável por ENV). Só e-mails novos: reaproveitar o `fingerprint` e o
-   estado em `/data`. Respeitar o fuso `America/Asuncion`.
+### Fatia 6 — Triagem com IA dentro dos relatórios das 06h e 18h (prioridade máxima)
+1. **Sem vigia:** usar as leituras que já existem (05h/17h) e os e-mails novos
+   que o `Scheduler` já separa (`keep_only_new`). Não aumentar a frequência.
 2. **Cabeçalhos:** o `Reader` passa a guardar `to`, `cc` e `reply_to`.
 3. **Sinais determinísticos primeiro (custo zero):**
    - `direto`: algum endereço do Douglas em `To`, e sem `List-Id`.
@@ -74,15 +72,18 @@ Outros limites:
    prompt: quem ele é, as 3 escolas (IFMS, Rede Elite, Estado-MS), o que é
    DIALAB e LIV, remetentes importantes. **Perguntar a ele** os remetentes e
    palavras de DIALAB/LIV/reunião geral antes de escrever.
-6. **Alerta no Telegram:** uma mensagem por e-mail importante (`direto`,
-   `reuniao_geral`, `dialab`, `liv`, ou `importancia >= 2`), com o motivo em uma
-   linha. Propaganda nunca alerta; entra só como contagem no relatório.
-7. Os e-mails alertados entram na `ConversationMemory`, para "o que diz esse?"
-   funcionar logo depois do alerta.
+6. **Relatório organizado por tipo** (o das 06h e o das 18h), nesta ordem:
+   🎯 direto para você · 👥 reunião geral · 🧪 DIALAB · 📚 LIV · ⚠️ outros
+   importantes (`importancia >= 2`), cada um com o motivo em uma linha e
+   prazo/data quando houver. Propaganda e o resto entram **só como contagem**
+   no fim ("12 propagandas, 5 outros"). Se não houver nada importante, dizer isso.
+7. Os e-mails do relatório entram na `ConversationMemory`, com a mesma
+   numeração, para "o que diz o 2?" funcionar logo depois do relatório.
 
-Pronto quando: e-mail de teste "direto" chega e o alerta aparece no Telegram em
-até 15 min. Propaganda não alerta. Specs cobrindo os sinais, o JSON inválido e a
-deduplicação.
+Pronto quando: um relatório de teste com e-mails de cada tipo sai separado
+nessas seções, propaganda aparece só na contagem, e o "o que diz o n?" logo
+depois responde sobre o e-mail certo. Specs cobrindo os sinais, o JSON inválido
+(cai no `Classifier`) e a numeração compartilhada com a memória.
 
 ### Fatia 7 — Busca de verdade
 - Nova intenção `:busca` no `IntentRouter` ("procura", "busca", "acha", "e-mails do fulano").
