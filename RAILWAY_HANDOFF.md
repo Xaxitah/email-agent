@@ -14,7 +14,7 @@ Atualizado em 2026-08-15.
 
 - Deployment ativo: `473c5aad-0e47-4843-8917-afd800f5db5d` (`SUCCESS`).
 - `ACCOUNT_COUNT=4`; `ACCOUNT_1_*` ate `ACCOUNT_4_*` possuem nome, host, usuario e senha.
-- A suite roda como pre-deploy e passou com `21 examples, 0 failures`.
+- A suíte e a verificação do Whisper rodam na construção da imagem final, antes da publicação. A fatia 6 passou com `121 examples, 0 failures` na B11; o build do Railway precisa confirmar o mesmo resultado antes de ativar a imagem.
 - A integracao DeepSeek esta implantada com modelo `deepseek-v4-flash` e leitura do corpo habilitada com limite de 4.000 caracteres por mensagem.
 - `DEEPSEEK_API_KEY` esta configurada nas variaveis protegidas do Railway; o valor nao e armazenado no repositorio.
 - Mensagens de voz estao habilitadas com `whisper.cpp` v1.9.1 e o modelo multilingue `base`, processados localmente no Railway.

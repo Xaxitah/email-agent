@@ -1,6 +1,6 @@
 # Fatia 6 — triagem nos relatórios agendados
 
-Implementação preparada na branch `feat/fatia-6-triagem`, com publicação no Railway autorizada pelo Douglas em 06/10/2026. O envio ao `main` aciona o deploy e suas verificações de RSpec e voz antes de ativar a versão.
+Implementação enviada ao `main`, com publicação no Railway autorizada pelo Douglas em 06/10/2026. O envio ao `main` aciona o deploy; RSpec e a verificação do Whisper executam na construção da imagem final e precisam passar antes de ativar a versão.
 
 As leituras permanecem às 05h/17h, com envio às 06h/18h. `Scheduler#keep_only_new` precede a triagem: mensagens já vistas não são reenviadas à IA. Cada lote contém no máximo 20 mensagens, com remetente, To/Cc, assunto, data, sinais determinísticos e até 1.500 caracteres do corpo.
 
@@ -48,3 +48,5 @@ Verificado em 06/10/2026 na B11, após configurar o perfil: **121 exemplos, 0 fa
 `bundle exec ruby examples/preview_triage_report.rb` imprime um relatório com dados fictícios e todos os tipos, sem acessar IA, Gmail ou Telegram. As buscas Gmail são verificadas com doubles nos specs e pela confirmação de suporte em runtime; ainda falta observar um relatório com Gmail e DeepSeek reais.
 
 Para publicar, a especificação exige testes verdes e OK do Douglas antes de juntar ao `main`, que dispara o deploy do Railway. A fatia 7 (busca de mensagens lidas/antigas) continua fora deste trabalho.
+
+O contêiner de pré-publicação do Railway recusou a criação por esperar `/data`, mesmo com o volume existente vinculado e pronto. As verificações passaram para o estágio final do Dockerfile; nenhum teste foi dispensado. O volume de produção e o estado do agendador permanecem no serviço.

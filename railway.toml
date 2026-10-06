@@ -4,5 +4,6 @@ dockerfilePath = "Dockerfile"
 watchPatterns = ["**"]
 
 [deploy]
-preDeployCommand = "bundle exec rspec && bundle exec ruby examples/verify_voice.rb"
+# RSpec e Whisper sao verificados no Dockerfile antes de gerar a imagem.
+preDeployCommand = []
 startCommand = "bundle exec ruby examples/bot_run.rb"

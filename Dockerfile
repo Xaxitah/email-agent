@@ -35,4 +35,8 @@ WORKDIR /app
 COPY --from=build /usr/local/bundle /usr/local/bundle
 COPY --from=build /app /app
 
+# Verifica a imagem final antes da publicacao, sem o volume de producao.
+RUN bundle exec rspec \
+  && VOICE_TRANSCRIPTION_ENABLED=true bundle exec ruby examples/verify_voice.rb
+
 CMD ["bundle", "exec", "ruby", "examples/bot_run.rb"]

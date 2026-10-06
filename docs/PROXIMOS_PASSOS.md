@@ -28,6 +28,8 @@ desde 28/08/2026) fica para buscas manuais, fora do bot.
 
 ## 2. Estado em 06/10/2026 (commit `49436ff` no `main`, no ar no Railway)
 
+**Atualização da fatia 6:** implementação e perfil concluídos, com 121 testes passando na B11. O `Reader` preserva To/Cc/Reply-To; a triagem organiza os relatórios das 06h/18h por tipo e compartilha a numeração com a memória. Ver `FATIA_6.md`. Os limites abaixo descrevem a versão anterior, que motivou esta fatia. A próxima funcionalidade é a fatia 7, somente quando solicitada pelo Douglas.
+
 Funciona:
 - Lê 4 contas Gmail por IMAP, **somente leitura** (`EXAMINE` + `BODY.PEEK[]`).
 - Bot do Telegram restrito a um `TELEGRAM_CHAT_ID`; texto e áudio (whisper.cpp local).
@@ -116,6 +118,11 @@ depois responde sobre o e-mail certo. Specs cobrindo os sinais, o JSON inválido
 - **Publicar = enviar para o `main`.** O Railway faz o build, roda o RSpec e só
   troca a versão se passar. Trabalhe em branch e só junte ao `main` com testes
   verdes e com o OK do Douglas.
+- RSpec e a verificação do Whisper executam no estágio final do Dockerfile. O
+  contêiner de pré-publicação foi dispensado porque o Railway recusava sua
+  criação por esperar `/data`, apesar do volume existente estar vinculado.
+  O build continua bloqueado se qualquer verificação falhar; o volume de
+  produção permanece preservado.
 
 ## 6. Mapa rápido do código
 | Arquivo | Papel |
