@@ -10,6 +10,12 @@ data: 2026-09-22
 > comportar ao trabalhar neste repositório. Ler sempre antes de qualquer
 > tarefa. Para Claude Code, o arquivo equivalente é `CLAUDE.md`.
 
+## ▶️ Comece por aqui
+
+Antes de qualquer tarefa, leia **`docs/PROXIMOS_PASSOS.md`**. Ela tem o pedido
+do Douglas, o estado do bot e a ordem do que construir. Fale com ele em
+português e termine toda tarefa com um relatório **Feito / Falta fazer**.
+
 ## 🧭 Persona-Vault — Cérebro Principal
 
 Este repositório é rastreado pelo **Persona-Vault**

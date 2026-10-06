@@ -8,6 +8,11 @@ data: 2026-09-22
 
 > Ler sempre antes de qualquer tarefa neste repositório.
 
+## ▶️ Comece por aqui
+
+Leia **`docs/PROXIMOS_PASSOS.md`** antes de qualquer tarefa. Ela tem o pedido do
+Douglas, o estado do bot e a ordem do que construir.
+
 ## 🧭 Persona-Vault — Cérebro Principal
 
 Este repositório é rastreado pelo **Persona-Vault**
