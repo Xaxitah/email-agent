@@ -48,7 +48,8 @@ module EmailAgent
       @manager = Manager.new
       @scheduler = Scheduler.from_env(
         manager: @manager,
-        on_report: method(:send_scheduled_report)
+        on_report: method(:send_scheduled_report),
+        triage: Triage.new(ai_client: @ai_client, profile: TriageProfile.from_env)
       )
       @offset = 0
       # Guarda o pedido original enquanto o usuario escolhe a conta no teclado.
@@ -217,7 +218,8 @@ module EmailAgent
 
       # Ordem das contas estavel: a numeracao [n] dos e-mails depende dela.
       results = nomes.each_with_object({}) { |nome, ordem| ordem[nome] = results[nome] if results.key?(nome) }
-      memoria.store_results(results)
+      # Uma leitura nova muda a lista, inclusive os numeros nas outras contas em cache.
+      results = faltando.any? ? memoria.store_fresh_results(results) : memoria.store_results(results)
 
       resposta = @ai_client ? ask_ai(text, results, memoria.turns) : resposta_simples(results)
       memoria.record_turn(text, resposta)
@@ -313,14 +315,21 @@ module EmailAgent
     end
 
     def send_scheduled_report(results, period)
-      title = period == "05" ? "Relatorio da manha" : "Relatorio da tarde"
-      request = "Gere o #{title.downcase()} apenas com os novos emails desta leitura. " \
-        "Destaque urgencias e possiveis compromissos com data ou horario."
-      body = @ai_client ? ask_ai(request, results) : resposta_simples(results)
-      # O relatorio entra na conversa: "o que diz o segundo?" logo depois dele
-      # precisa saber a que lista se refere.
-      memoria.record_turn(title, body)
-      send_message(@chat_id, "📬 <b>#{title}</b>\n#{body}")
+      title = (period == "05") ? "Relatorio da manha" : "Relatorio da tarde"
+      # Estados pendentes de versoes anteriores ainda podem nao ter triagem.
+      local_triage = Triage.new(ai_client: nil, profile: TriageProfile.from_env)
+      results = results.transform_values do |data|
+        data.merge(emails: Array(data[:emails]).map do |email|
+          email[:triage] ? email : local_triage.classify("legacy" => {emails: [email]})["legacy"][:emails].first
+        end)
+      end
+      report = ScheduledReport.new(results)
+      messages = report.messages(title)
+      return false unless messages.all? { |message| send_message(@chat_id, message) }
+
+      memoria.store_report(report.memory_results)
+      memoria.record_turn(title, messages.join("\n"))
+      true
     end
 
     def send_action(chat_id, action)
@@ -396,6 +405,7 @@ module EmailAgent
 
       lines = ["<b>Emails nao lidos</b>", Time.now.strftime("%d/%m/%Y %H:%M")]
 
+      numero = 0
       results.each do |account_name, data|
         lines << "\n<b>#{escape(account_name)}</b>"
 
@@ -412,9 +422,10 @@ module EmailAgent
 
         emails.first(10).each_with_index do |email, index|
           categories = email[:categories].join(", ")
-          lines << "#{index + 1}. <b>#{escape(email[:subject])}</b>"
+          lines << "[#{email[:report_number] || numero + index + 1}] <b>#{escape(email[:subject])}</b>"
           lines << "De: #{escape(email[:from])} | #{escape(categories)}"
         end
+        numero += emails.size
       end
 
       lines.join("\n")
@@ -422,20 +433,22 @@ module EmailAgent
 
     def ask_ai(text, results, historico = [])
       numero = 0
+      report_bodies = results.values.any? { |data| Array(data[:emails]).any? { |email| email[:report_number] } }
       safe_results = results.transform_values do |data|
         {
           error: data[:error],
           emails: (data[:emails] || []).map do |email|
             numero += 1
             safe_email = {
-              n: numero,
+              n: email[:report_number] || numero,
               from: email[:from],
               subject: email[:subject],
               date: email[:date],
               categories: email[:categories]
             }
-            if @include_email_body
-              safe_email[:body] = email[:body].to_s.slice(0, @email_body_max_chars)
+            if @include_email_body || email[:report_number]
+              limit = @include_email_body ? @email_body_max_chars : Triage::BODY_CHARS
+              safe_email[:body] = email[:body].to_s.slice(0, limit)
             end
             safe_email
           end
@@ -444,6 +457,8 @@ module EmailAgent
 
       data_description = if @include_email_body
         "metadados e corpos de emails nao lidos"
+      elsif report_bodies
+        "metadados e trechos de ate 1500 caracteres dos e-mails do relatorio"
       else
         "somente metadados de emails nao lidos; o corpo nao foi enviado"
       end

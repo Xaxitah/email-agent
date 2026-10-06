@@ -10,12 +10,13 @@ module EmailAgent
     SCAN_HOURS = [5, 17].freeze
     REPORT_HOURS = {6 => 5, 18 => 17}.freeze
 
-    def self.from_env(manager:, on_report:)
+    def self.from_env(manager:, on_report:, triage: nil)
       return nil unless env_true?("SCHEDULE_ENABLED", default: true)
 
       new(
         manager: manager,
         on_report: on_report,
+        triage: triage,
         state_path: ENV.fetch("SCHEDULE_STATE_PATH", "/data/scheduler-state.json"),
         email_limit: ENV.fetch("SCHEDULE_EMAIL_LIMIT", 200).to_i.clamp(1, 1000),
         catchup_minutes: ENV.fetch("SCHEDULE_CATCHUP_MINUTES", 180).to_i.clamp(1, 720)
@@ -27,9 +28,10 @@ module EmailAgent
       %w[1 true yes sim].include?(value)
     end
 
-    def initialize(manager:, on_report:, state_path:, email_limit: 200, catchup_minutes: 180, clock: -> { Time.now })
+    def initialize(manager:, on_report:, state_path:, triage: nil, email_limit: 200, catchup_minutes: 180, clock: -> { Time.now })
       @manager = manager
       @on_report = on_report
+      @triage = triage
       @state_path = state_path
       @email_limit = email_limit
       @catchup_minutes = catchup_minutes
@@ -55,6 +57,7 @@ module EmailAgent
 
       results = @manager.check_all(limit: @email_limit, notify_urgent: false)
       filtered = keep_only_new(results, now)
+      filtered = @triage.classify(filtered) if @triage
       @state["pending"][pending_key(now, hour)] = serialize_results(filtered)
       @state["runs"][key] = now.iso8601
       prune_state(now)
@@ -111,16 +114,8 @@ module EmailAgent
     end
 
     def serialize_results(results)
-      results.transform_values do |data|
-        {
-          "error" => data[:error],
-          "emails" => (data[:emails] || []).map do |email|
-            email.transform_keys(&:to_s).transform_values do |value|
-              value.is_a?(Array) ? value.map(&:to_s) : value.to_s
-            end
-          end
-        }
-      end
+      # JSON preserva os objetos de cabecalhos e os inteiros da triagem.
+      JSON.parse(JSON.generate(results))
     end
 
     def deserialize_results(results)
@@ -130,6 +125,13 @@ module EmailAgent
           emails: data.fetch("emails", []).map do |email|
             email.transform_keys(&:to_sym).tap do |item|
               item[:categories] = Array(item[:categories]).map(&:to_sym)
+              item[:gmail_categories] = Array(item[:gmail_categories]).map(&:to_sym)
+              item[:headers] = item[:headers].is_a?(Hash) ? item[:headers].transform_keys(&:to_sym) : {}
+              if item[:triage].is_a?(Hash)
+                item[:triage] = item[:triage].transform_keys(&:to_sym)
+                item[:triage][:tipo] = item[:triage][:tipo].to_sym
+                item[:triage][:source] = item[:triage][:source].to_sym
+              end
             end
           end
         }

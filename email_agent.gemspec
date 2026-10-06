@@ -20,7 +20,7 @@ Gem::Specification.new do |spec|
 
   spec.files = Dir.chdir(__dir__) do
     Dir[
-      "{lib,sig,bin}/**/*",
+      "{config,lib,sig,bin}/**/*",
       "README.md",
       "CHANGELOG.md",
       "LICENSE",

@@ -11,7 +11,10 @@ RSpec.describe EmailAgent::Scheduler do
   let(:scheduler) do
     described_class.new(
       manager: manager,
-      on_report: ->(results, period) { reports << [results, period]; true },
+      on_report: ->(results, period) {
+        reports << [results, period]
+        true
+      },
       state_path: state_path,
       clock: clock
     )
@@ -75,7 +78,10 @@ RSpec.describe EmailAgent::Scheduler do
 
     restarted = described_class.new(
       manager: manager,
-      on_report: ->(results, period) { reports << [results, period]; true },
+      on_report: ->(results, period) {
+        reports << [results, period]
+        true
+      },
       state_path: state_path,
       clock: clock
     )
@@ -83,5 +89,70 @@ RSpec.describe EmailAgent::Scheduler do
     restarted.tick
 
     expect(reports.first[0]["Work"][:emails].first[:subject]).to eq("Persistido")
+  end
+
+  it "faz a triagem somente dos novos e-mails nas leituras de 05h e 17h" do
+    triage = instance_double(EmailAgent::Triage)
+    allow(triage).to receive(:classify) { |results| results }
+    scheduled = described_class.new(manager: manager, triage: triage,
+      on_report: ->(*_) { true }, state_path: state_path, clock: clock)
+    same = email("same", "Mesmo")
+    fresh = email("fresh", "Novo")
+    allow(manager).to receive(:check_all).and_return(results_for(same), results_for(same, fresh))
+
+    @now = Time.local(2026, 10, 6, 5, 0)
+    scheduled.tick
+    @now = Time.local(2026, 10, 6, 12, 0)
+    scheduled.tick
+    @now = Time.local(2026, 10, 6, 17, 0)
+    scheduled.tick
+
+    expect(triage).to have_received(:classify).with(results_for(same)).once
+    expect(triage).to have_received(:classify).with(results_for(fresh)).once
+    expect(manager).to have_received(:check_all).twice
+  end
+
+  it "preserva cabecalhos, importancia numerica e triagem apos reiniciar" do
+    triage = EmailAgent::Triage.new(ai_client: nil,
+      profile: EmailAgent::TriageProfile.new({"addresses" => ["douglas@example.com"]}))
+    original = email("one", "Prazo urgente").merge(
+      headers: {to: ["douglas@example.com"], cc: ["colega@example.com"], reply_to: ["resposta@example.com"]},
+      gmail_categories: [:promotions]
+    )
+    allow(manager).to receive(:check_all).and_return(results_for(original))
+    scheduled = described_class.new(manager: manager, triage: triage,
+      on_report: ->(*_) { true }, state_path: state_path, clock: clock)
+    @now = Time.local(2026, 10, 6, 5, 0)
+    scheduled.tick
+    restarted = described_class.new(manager: manager,
+      on_report: ->(results, _) {
+        reports << results
+        true
+      }, state_path: state_path, clock: clock)
+    @now = Time.local(2026, 10, 6, 6, 0)
+    restarted.tick
+
+    item = reports.first["Work"][:emails].first
+    expect(item[:headers]).to eq(original[:headers])
+    expect(item[:gmail_categories]).to eq([:promotions])
+    expect(item[:triage]).to include(tipo: :direto, importancia: 3, source: :fallback)
+  end
+
+  it "mantem o relatorio pendente quando o Telegram falha" do
+    allow(manager).to receive(:check_all).and_return(results_for(email("one", "Primeiro")))
+    attempts = 0
+    scheduled = described_class.new(manager: manager,
+      on_report: ->(*_) {
+        attempts += 1
+        attempts > 1
+      }, state_path: state_path, clock: clock)
+    @now = Time.local(2026, 10, 6, 5, 0)
+    scheduled.tick
+    @now = Time.local(2026, 10, 6, 6, 0)
+    scheduled.tick
+    scheduled.tick
+    scheduled.tick
+
+    expect(attempts).to eq(2)
   end
 end

@@ -23,6 +23,9 @@ Este repositório é rastreado pelo **Persona-Vault**
 central do Douglas que sabe da existência de todos os vaults e projetos —
 ver `00-Meta/Vaults/mapa-de-cerebros.md` lá.
 
+No PC de casa, o caminho local é `E:\Work\Obsidian Claud\Persona-Vault`.
+Consulte também esse caminho antes de concluir que o vault não está acessível.
+
 - Depois de um trabalho relevante aqui, edite a seção `## Notas` de
   `00-Meta/Vaults/email-agent.md` no Persona-Vault com um resumo de 1 a 3
   linhas: o que mudou, por quê, e o que falta.

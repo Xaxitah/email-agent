@@ -20,6 +20,7 @@ module EmailAgent
       imap.examine("INBOX")
 
       uids = imap.search(["UNSEEN"]).last(limit)
+      gmail_categories = fetch_gmail_categories(imap, uids)
 
       uids.each do |uid|
         raw = imap.fetch(uid, "BODY.PEEK[]").first.attr["BODY[]"]
@@ -27,6 +28,7 @@ module EmailAgent
 
         summary = self.class.summarize(mail)
         summary[:uid] = uid
+        summary[:gmail_categories] = gmail_categories.fetch(uid, [])
         summary[:categories] = Classifier.classify(summary)
         emails << summary
       end
@@ -51,6 +53,7 @@ module EmailAgent
       {
         message_id: safe_encode(mail.message_id),
         from: mail.from&.first,
+        from_name: safe_encode(mail[:from]&.display_names&.first),
         subject: safe_encode(mail.subject),
         date: mail.date,
         headers: extract_headers(mail),
@@ -61,7 +64,9 @@ module EmailAgent
     def self.extract_headers(mail)
       AUTOMATION_HEADER_FIELDS.transform_values do |field|
         safe_encode(mail[field]&.to_s)
-      end
+      end.merge(%i[to cc reply_to].to_h do |field|
+        [field, Array(mail.public_send(field)).map { |address| safe_encode(address) }]
+      end)
     rescue
       {}
     end
@@ -83,6 +88,22 @@ module EmailAgent
     end
 
     private
+
+    def fetch_gmail_categories(imap, uids)
+      return {} if uids.empty?
+      return {} unless @account.host.to_s.downcase == "imap.gmail.com"
+      return {} unless imap.capable?("X-GM-EXT-1")
+
+      categories = Hash.new { |hash, key| hash[key] = [] }
+      %i[promotions social].each do |category|
+        matches = imap.search(["UNSEEN", "X-GM-RAW", "category:#{category}"])
+        (matches & uids).each { |uid| categories[uid] << category }
+      end
+      categories
+    rescue Net::IMAP::Error
+      # A capability alone is not proof: discard partial signals if SEARCH fails.
+      {}
+    end
 
     def disconnect_safely(imap)
       return unless imap

@@ -46,6 +46,18 @@ module EmailAgent
         @accounts[name] = {data: data, at: now}
       end
       @last_accounts = results.keys
+      results
+    end
+
+    def store_fresh_results(results)
+      @accounts.each_value { |entry| entry[:data] = without_report_numbers(entry[:data]) }
+      store_results(results.transform_values { |data| without_report_numbers(data) })
+    end
+
+    # Um relatorio passa a ser a lista ativa, incluindo sua numeracao por tipo.
+    def store_report(results)
+      clear
+      store_results(results)
     end
 
     # So as contas pedidas que ainda estao frescas, na ordem pedida.
@@ -72,6 +84,12 @@ module EmailAgent
     end
 
     private
+
+    def without_report_numbers(data)
+      data.merge(emails: Array(data[:emails]).map do |email|
+        email.is_a?(Hash) ? email.except(:report_number) : email
+      end)
+    end
 
     def fresh?(time)
       @clock.call - time < @ttl

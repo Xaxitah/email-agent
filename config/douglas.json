@@ -1,0 +1,31 @@
+{
+  "name": "Douglas",
+  "context": "Professor em três redes. No IFMS, Campus Ponta Porã, leciona Química 2, Química Analítica e Comunicação Técnica. Na Rede Elite, atua com Ciências, Biologia, DIALAB e LIV. Na rede Estado-MS, leciona Química nas escolas E.E. Geni e E.E. Pedro Afonso. Priorizar comunicações relevantes ao trabalho docente; não presumir atribuições de gestor para o Douglas.",
+  "schools": ["IFMS", "Rede Elite", "Estado-MS"],
+  "addresses": [],
+  "important_senders": [],
+  "important_roles": ["coordenação", "coordenador", "coordenadora", "gestão", "gestor", "gestora", "direção", "diretor", "diretora"],
+  "urgent_keywords": ["responda hoje", "responder hoje", "vence hoje", "vencimento amanhã", "prazo próximo", "último dia", "convocação", "mudança de horário", "alteração de horário"],
+  "preferences": {
+    "promotions": "ocultar propaganda e newsletters comerciais, sem exceções. Avisos institucionais de trabalho não são propaganda só por serem enviados em lista ou conterem List-Unsubscribe.",
+    "priority": "Coordenação e gestão das escolas são importantes, mesmo sem uma lista de endereços conhecidos. Reconhecer o papel pelo nome do remetente e pelo contexto institucional, sem inventar remetentes.",
+    "urgent": "Destacar ao máximo pedidos para responder hoje, prazos próximos, convocações e mudanças de horário. Não inventar datas nem atribuir urgência a uma propaganda comercial.",
+    "addresses": "Usar somente os endereços das contas configuradas; não há aliases adicionais."
+  },
+  "topics": {
+    "dialab": {
+      "description": "Disciplina DIALAB da Rede Elite, com letramento em inteligência artificial e atividades organizadas em trilhas. DIALAB sempre aparece nas mensagens dessa área. Sugestões auxiliares: trilhas, formação docente, guia do professor e letramento em IA; essas expressões sozinhas não comprovam DIALAB.",
+      "keywords": ["DIALAB"]
+    },
+    "liv": {
+      "description": "LIV significa Laboratório de Inteligência de Vida. Identificar a sigla/nome completo ou assuntos de bem-estar, saúde mental e cuidados em contexto escolar. Não confundir anúncios genéricos de saúde com comunicação do LIV.",
+      "keywords": ["LIV", "Laboratório de Inteligência de Vida"],
+      "contextual_keywords": ["bem-estar", "bem estar", "saúde mental", "cuidados"],
+      "context_keywords": ["Elite", "escola", "escolar", "aluno", "alunos", "turma", "turmas", "professor", "professores", "pedagógico", "pedagógica"]
+    },
+    "reuniao_geral": {
+      "description": "Reuniões de professores, coordenação e escola inteira nas três redes, incluindo convocações e encontros pedagógicos relevantes ao Douglas.",
+      "keywords": ["reunião geral", "reunião de professores", "reunião dos professores", "reunião de coordenação", "reunião da coordenação", "reunião da escola", "reunião pedagógica", "encontro pedagógico", "café pedagógico"]
+    }
+  }
+}

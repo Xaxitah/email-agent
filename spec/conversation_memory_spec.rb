@@ -67,7 +67,10 @@ RSpec.describe "EmailAgent::TelegramBot memoria da conversa" do
     bot.instance_variable_set(:@manager, manager)
     bot.instance_variable_set(:@ai_client, ai)
     bot.instance_variable_set(:@voice_transcriber, nil)
-    allow(ai).to receive(:complete) { |prompt, **| prompts << prompt; "resposta" }
+    allow(ai).to receive(:complete) do |prompt, **|
+      prompts << prompt
+      "resposta"
+    end
     allow(bot).to receive(:send_action)
     allow(bot).to receive(:send_message).and_return(true)
     allow(bot).to receive(:send_message_with_id).and_return(1)
@@ -97,6 +100,15 @@ RSpec.describe "EmailAgent::TelegramBot memoria da conversa" do
     bot.send(:handle_update, texto("resuma os emails da alpha"))
 
     expect(prompts.last).to include('"n":1')
+  end
+
+  it "mantem a numeracao global no fallback mesmo quando a primeira conta tem mais de 10 e-mails" do
+    bot = build_bot
+    first = Array.new(11) { {subject: "Primeira", categories: [:geral]} }
+    data = {"Alpha" => {emails: first}, "Beta" => {emails: [{subject: "Segunda conta", categories: [:geral]}]}}
+    allow(ai).to receive(:complete).and_raise(IOError, "indisponivel")
+
+    expect(bot.send(:ask_ai, "resuma", data)).to include("[12] <b>Segunda conta</b>")
   end
 
   it "rele as caixas quando o pedido diz para atualizar" do
